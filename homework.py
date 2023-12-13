@@ -86,9 +86,10 @@ class SportsWalking(Training):
     WEIGHT_MULTIPLIER_1 = 0.035
     WEIGHT_MULTIPLIER_2 = 0.029
     CM_IN_M = 100
-    SEC_IN_HOUR = 3600
-    M_IN_KM = 1000
-    MET_PER_SEC_RATIO = round((M_IN_KM / SEC_IN_HOUR), 3)
+    SEC_IN_MIN = 60
+    MET_PER_SEC_RATIO = round((Training.M_IN_KM / (
+        Training.MIN_IN_H * SEC_IN_MIN
+    )), 3)
     height: float
 
     def get_spent_calories(self) -> float:
@@ -149,21 +150,26 @@ TRAININGS = {
     "WLK": SportsWalking
 }
 
-INVALID_TRAINING_TYPE_MESSAGE = 'Неверный тип тренировки: {workout_type}'
-INVALID_DATA_MESSAGE = 'Неверная структура полученных данных ожидается: \
-{expected} значений, получено: {received}'
+INVALID_TRAINING_TYPE = 'Неверный тип тренировки: {workout_type}'
+INVALID_DATA = ('Неверная структура полученных данных ожидается: '
+                '{expected} значений, получено: {received}')
 
 
 def read_package(workout_type: str, data: list[float]) -> Training:
     """Прочитать данные полученные от датчиков."""
     if workout_type not in TRAININGS:
-        raise ValueError(INVALID_TRAINING_TYPE_MESSAGE
-                         .format(workout_type=workout_type))
+        raise ValueError(
+            INVALID_TRAINING_TYPE.format(
+                workout_type=workout_type
+            )
+        )
     training_type = TRAININGS[workout_type]
-    if (len(fields(training_type)) != len(data)):
-        raise ValueError(INVALID_DATA_MESSAGE.format(
-            expected=len(fields(training_type)),
-            received=len(data)))
+    fields_length = len(fields(training_type))
+    data_length = len(data)
+    if fields_length != data_length:
+        raise ValueError(INVALID_DATA.format(
+            expected=fields_length,
+            received=data_length))
     return training_type(*data)
 
 
