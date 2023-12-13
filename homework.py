@@ -149,16 +149,21 @@ TRAININGS = {
     "WLK": SportsWalking
 }
 
+INVALID_TRAINING_TYPE_MESSAGE = 'Неверный тип тренировки: {workout_type}'
+INVALID_DATA_MESSAGE = 'Неверная структура полученных данных ожидается: \
+{expected} значений, получено: {received}'
+
 
 def read_package(workout_type: str, data: list[float]) -> Training:
     """Прочитать данные полученные от датчиков."""
     if workout_type not in TRAININGS:
-        raise ValueError('Неверный тип тренировки')
+        raise ValueError(INVALID_TRAINING_TYPE_MESSAGE
+                         .format(workout_type=workout_type))
     training_type = TRAININGS[workout_type]
-    if (len(fields(training_type)) < len(data)):
-        raise TypeError('Неверная структура полученных данных')
-    elif (len(fields(training_type)) > len(data)):
-        raise TypeError('Недостаточно данных для расчёта')
+    if (len(fields(training_type)) != len(data)):
+        raise ValueError(INVALID_DATA_MESSAGE.format(
+            expected=len(fields(training_type)),
+            received=len(data)))
     return training_type(*data)
 
 
