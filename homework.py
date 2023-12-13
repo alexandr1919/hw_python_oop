@@ -1,4 +1,4 @@
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, fields
 
 
 @dataclass
@@ -26,14 +26,14 @@ class InfoMessage:
 class Training:
     """Базовый класс тренировки."""
     M_IN_KM = 1000
-    M_IN_H = 60
-    S_IN_M = 60
+    MIN_IN_H = 60
     LEN_STEP = 0.65
     action: int
     duration: float
     weight: float
 
     def get_distance(self) -> float:
+        fields(self)
         """Получить дистанцию в км."""
         return self.action * self.LEN_STEP / self.M_IN_KM
 
@@ -43,8 +43,8 @@ class Training:
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
-        raise NotImplementedError(f'''Метод для получения затраченных калорий
-                                  в {type(self).__name__}.''')
+        raise NotImplementedError(f'Метод для получения затраченных калорий\
+                                    в {self.training_type()}.')
 
     def training_type(self) -> str:
         """Вернуть тип тренировки"""
@@ -76,7 +76,7 @@ class Running(Training):
                 + self.CALORIES_MEAN_SPEED_SHIFT
             )
             * (self.weight / self.M_IN_KM)
-            * (self.duration * self.M_IN_H)
+            * (self.duration * self.MIN_IN_H)
         )
 
 
@@ -85,21 +85,11 @@ class SportsWalking(Training):
     """Тренировка: спортивная ходьба."""
     WEIGHT_MULTIPLIER_1 = 0.035
     WEIGHT_MULTIPLIER_2 = 0.029
-    S_IN_H_RATIO = round((1 * 1000 / 3600), 3)
     CM_IN_M = 100
+    SEC_IN_HOUR = 3600
+    M_IN_KM = 1000
+    MET_PER_SEC_RATIO = round((M_IN_KM / SEC_IN_HOUR), 3)
     height: float
-
-    def height_in_metres(self):
-        """Получить высоту в метрах"""
-        return self.height / self.CM_IN_M
-
-    def duration_in_minutes(self):
-        """Получить длительность в минутах"""
-        return self.duration * self.M_IN_H
-
-    def mean_speed_m_s(self):
-        """Получить среднюю сокрость в м/с"""
-        return self.get_mean_speed() * self.S_IN_H_RATIO
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий для тренировки 'Ходьба'"""
@@ -108,12 +98,18 @@ class SportsWalking(Training):
                 self.WEIGHT_MULTIPLIER_1
                 * self.weight
                 + (
-                    self.mean_speed_m_s()**2
-                    / self.height_in_metres()
+                    (
+                        self.get_mean_speed()
+                        * self.MET_PER_SEC_RATIO
+                    )**2
+                    / (self.height / self.CM_IN_M)
                 )
                 * self.WEIGHT_MULTIPLIER_2
-                * self.weight)
-            * self.duration_in_minutes())
+                * self.weight
+            )
+            * self.duration
+            * self.MIN_IN_H
+        )
 
 
 @dataclass
@@ -123,7 +119,7 @@ class Swimming(Training):
     MEAN_SPEED_OFFSET = 1.1
     WEIGHT_MULTIPLIER = 2
     length_pool: float
-    count_pool: float
+    count_pool: int
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий для тренировки 'Плавание'"""
@@ -147,22 +143,28 @@ class Swimming(Training):
         )
 
 
+TRAININGS = {
+    "SWM": Swimming,
+    "RUN": Running,
+    "WLK": SportsWalking
+}
+
+
 def read_package(workout_type: str, data: list[float]) -> Training:
     """Прочитать данные полученные от датчиков."""
-    training_dict = {
-        "SWM": Swimming,
-        "RUN": Running,
-        "WLK": SportsWalking
-    }
-    training = training_dict[workout_type](*data)
-
-    return training
+    if workout_type not in TRAININGS:
+        raise ValueError('Неверный тип тренировки')
+    training_type = TRAININGS[workout_type]
+    if (len(fields(training_type)) < len(data)):
+        raise TypeError('Неверная структура полученных данных')
+    elif (len(fields(training_type)) > len(data)):
+        raise TypeError('Недостаточно данных для расчёта')
+    return training_type(*data)
 
 
 def main(training: Training) -> None:
     """Главная функция."""
-    info: InfoMessage = training.show_training_info()
-    print(info.get_message())
+    print(training.show_training_info().get_message())
 
 
 if __name__ == "__main__":
@@ -173,5 +175,4 @@ if __name__ == "__main__":
     ]
 
     for workout_type, data in packages:
-        training = read_package(workout_type, data)
-        main(training)
+        main(read_package(workout_type, data))
